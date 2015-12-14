@@ -1,0 +1,12 @@
+\.DS_Store
+frontend/node_modules
+backend/node_modules
+\.idea
+distributed/v1/derby.log
+distributed/v1/target
+distributed/v1/project
+distributed/v1/metastore_db
+visualize/mapdb/build
+visualize/node_modules
+simple
+*\.osm
