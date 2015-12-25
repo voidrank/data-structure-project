@@ -29,7 +29,7 @@ namespace xml_parser {
 namespace store {
 
     using namespace std;
-    
+
 
     struct Point {
         double lat, lon;
@@ -163,6 +163,7 @@ namespace store {
     }
 
     Point getPoint(int index) {
+
         return v[index];
     }
 

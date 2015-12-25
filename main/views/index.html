@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Map</title>
+    <script src="/static/jquery.js"></script>
+    <style>
+        body {
+            font-family: tahoma,tahoma-w01-regular,tahoma-w02-regular,tahoma-w10-regular,tahoma-w15--regular,tahoma-w99-regular,sans-serif;
+            margin: 0;
+            padding: 0;
+        }
+
+        #mask {
+            margin: 50px auto auto auto;
+            width: 100%;
+            height: 700px;
+            text-align: center;
+        }
+
+        #theMap {
+            margin: 20px auto auto auto;
+            border: 2px solid #dedede;
+            box-shadow: 3px 3px #eeeeee;
+            border-radius: 5px;
+        }
+
+        .title {
+            font-size: 5em;
+            font-weight: 900;
+            color: #00CCCC;
+        }
+
+        .navigator {
+            top: 0;
+            width: 100%;
+            height: 50px;
+            position: fixed;
+            box-shadow: 2px 6px #eeeeee;
+            background-color: #ffffff;
+            text-align: center;
+        }
+
+        .navigator .button {
+            width: 40px;
+            height: 20px;
+            text-align: center;
+            background-color: #00CCCC;
+            box-shadow: 1px 1px #eeeeee;
+        }
+
+    </style>
+    <script>
+        $(function() {
+
+            var HIGH_WAY;
+            $.ajax({
+                url: "/config/HIGH_WAY.json",
+                async: false
+            }).done(function(data) {
+                HIGH_WAY = JSON.parse(data);
+            });
+
+
+            var WAY_COLOR;
+            $.ajax({
+                url: "/config/WAY_COLOR.json",
+                async: false
+            }).done(function(data) {
+                WAY_COLOR = JSON.parse(data);
+            });
+
+
+            var WAY_VISIBLE;
+            $.ajax({
+                url: "/config/WAY_VISIBLE.json",
+                async: false
+            }).done(function(data) {
+                WAY_VISIBLE = JSON.parse(data);
+            });
+
+            var LINE_WIDTH;
+            $.ajax({
+                url: "/config/LINE_WIDTH.json",
+                async: false
+            }).done(function(data) {
+                LINE_WIDTH = JSON.parse(data);
+            });
+
+            var WIDTH_SCALE;
+            $.ajax({
+                url: "/config/WIDTH_SCALE.json",
+                async: false
+            }).done(function(data) {
+                WIDTH_SCALE = JSON.parse(data);
+            });
+
+            var HEIGHT_SCALE;
+            $.ajax({
+                url: "/config/HEIGHT_SCALE.json",
+                async: false
+            }).done(function(data) {
+                HEIGHT_SCALE = JSON.parse(data);
+            });
+
+            var MAP_BOUNDARY, MAX_LON, MAX_LAT, MIN_LON, MIN_LAT;
+            $.ajax({
+                url: "/config/MAP_BOUNDARY.json",
+                async: false
+            }).done(function(data) {
+                MAP_BOUNDARY = JSON.parse(data);
+                MAX_LON = MAP_BOUNDARY["MAX_LON"];
+                MAX_LAT = MAP_BOUNDARY["MAX_LAT"];
+                MIN_LON = MAP_BOUNDARY["MIN_LON"];
+                MIN_LAT = MAP_BOUNDARY["MIN_LAT"];
+            });
+
+            var selectA = 0, selectB = 0,
+                    node_a = 0, node_b = 0;
+            $("#select-a").click(function(e) {
+                selectA = 1;
+            });
+            $("#select-b").click(function(e) {
+                selectB = 1;
+            });
+            $("#cal-shortest").click(function(e) {
+                $.ajax({
+                    url: "/calShortest?" + jsonToUrl({
+                        a: node_a,
+                        b: node_b
+                    })
+                }).done(function() {
+                    updateMap();
+                })
+            });
+
+            $("img").mousedown(function(e){
+                var x = e.pageX - this.offsetLeft,
+                    y = e.pageY - this.offsetTop;
+                var clon = lon + x / ratio,
+                    clat = lat - y / ratio;
+                if (selectA !== 0) {
+                    $.ajax({
+                        url: "/getNearestPoint?" + jsonToUrl({
+                            lon: clon,
+                            lat: clat
+                        })
+                    }).done(function(data) {
+                        node_a = parseInt(data);
+                        updateMap();
+                    });
+                    selectA = 0;
+                }
+                if (selectB !== 0) {
+                    $.ajax({
+                        url: "/getNearestPoint?" + jsonToUrl({
+                            lon: clon,
+                            lat: clat
+                        })
+                    }).done(function(data) {
+                        node_b = parseInt(data);
+                        updateMap();
+                    });
+                    selectB = 0;
+                }
+
+                e.preventDefault()
+            });
+
+
+            var currentX, currentY, mouseDown = 0,
+                lon = MIN_LON, lat = MAX_LAT, scale = 0,
+                latestDate = new Date().getTime();
+
+            var WIDTH = WIDTH_SCALE[scale], HEIGHT = HEIGHT_SCALE[scale],
+                width = MAX_LON - MIN_LON,
+                height = MAX_LAT - MIN_LAT,
+                widthRatio = WIDTH / width,
+                heightRatio = HEIGHT / height,
+                ratio = Math.min(widthRatio, heightRatio);
+
+            $("#mask").mousedown(function(e) {
+                mouseDown = 1;
+                currentX = e.pageX;
+                currentY = e.pageY;
+            });
+
+            $("#mask").mousemove(function(e) {
+                if (mouseDown) {
+                    var dx = e.pageX - currentX,
+                        dy = e.pageY - currentY;
+                    dx = -dx;
+                    dx = dx / ratio;
+                    dy = dy / ratio;
+                    lon += dx;
+                    lat += dy;
+                    currentX = e.pageX;
+                    currentY = e.pageY;
+                    lon = Math.max(lon, MIN_LON);
+                    lat = Math.min(lat, MAX_LAT);
+                }
+            });
+
+            $("#mask").mouseup(function(e) {
+                mouseDown = 0;
+            });
+
+            $("#small").click(function(e) {
+                lon += 1000 / (ratio * 2);
+                lat -= 500 / (ratio * 2);
+                scale--;
+                scale = Math.max(0, scale);
+                updataScale(scale);
+                lon -= 1000 / (ratio * 2);
+                lat += 500 / (ratio * 2);
+                updateMap();
+            });
+
+            $("#full").click(function(e) {
+                lon += 1000 / (ratio * 2);
+                lat -= 500 / (ratio * 2);
+                scale++;
+                scale = Math.min(4, scale);
+                updataScale(scale);
+                lon -= 1000 / (ratio * 2);
+                lat += 500 / (ratio * 2);
+                updateMap();
+            });
+
+            function jsonToUrl(obj) {
+                return Object.keys(obj).map(function(key) {
+                    return encodeURIComponent(key) + "=" + encodeURIComponent(obj[key]);
+                }).join("&");
+            }
+
+            function updataScale(_scale) {
+                scale = _scale;
+                WIDTH = WIDTH_SCALE[scale], HEIGHT = HEIGHT_SCALE[scale],
+                width = MAX_LON - MIN_LON,
+                height = MAX_LAT - MIN_LAT,
+                widthRatio = WIDTH / width,
+                heightRatio = HEIGHT / height,
+                ratio = Math.min(widthRatio, heightRatio);
+            }
+
+            function updateMap() {
+                var currentTime = new Date().getTime();
+                $.ajax({
+                    url: "/getmap?" + jsonToUrl({
+                        lon: lon,
+                        lat: lat,
+                        scale: scale
+                    })
+                }).done(function(data) {
+                    if (currentTime > latestDate) {
+                        $("#theMap").attr("src", data);
+                        latestDate = currentTime;
+                    }
+                });
+            }
+
+            updateMap();
+
+            setInterval(function() {
+                if (mouseDown)
+                    updateMap();
+            }, 80);
+        });
+    </script>
+</head>
+<body>
+    <div class="navigator">
+        <span class="button" id="small" aria-hidden="true" style="font-size: 20px; margin: 3px; cursor: pointer;">放大</span>
+        <span class="button" id="full" aria-hidden="true" style="font-size: 20px; margin: 3px; cursor: pointer;">缩小</span>
+        <span class="button" id="select-a" aria-hidden="true" style="font-size: 20px; margin: 4px; cursor: pointer;">A</span>
+        <span class="button" id="select-b" aria-hidden="true" style="font-size: 20px; margin: 4px; cursor: pointer;">B</span>
+        <span class="button" id="cal-shortest" aria-hidden="true" style="font-size: 20px; margin: 4px; cursor: pointer;">最短路</span>
+        <span class="button" id="left" aria-hidden="true" style="font-size: 20px; margin: 4px; cursor: pointer;"></span>
+        <span class="button" id="right" aria-hidden="true" style="font-size: 20px; margin: 4px; cursor: pointer;"></span>
+        <span class="button" id="up" aria-hidden="true" style="font-size: 20px; margin: 4px; cursor: pointer;"></span>
+        <span class="button" id="down" aria-hidden="true" style="font-size: 20px; margin: 4px; cursor: pointer;"></span>
+    </div>
+    <div id="mask" style="cursor: grab; cursor: -webkit-grab; float: left;">
+        <div class="title">Simple Map</div>
+        <img style="height: 500px; width: 1000px" id="theMap">
+    </div>
+</body>
+</html>

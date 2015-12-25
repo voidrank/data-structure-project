@@ -2,6 +2,7 @@
 
 #include <cstdlib>
 #include <cstdio>
+#include <cmath>
 #include <iostream>
 #include <vector>
 #include <memory>
@@ -25,3 +26,6 @@ namespace std {
         return (T&&)in;
     }
 }
+
+namespace store {}
+namespace map_algorithm {}

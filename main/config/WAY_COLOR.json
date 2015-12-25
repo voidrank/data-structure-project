@@ -1,0 +1,15 @@
+{
+  "motorway": "#9d95ad",
+  "trunk": "#a098b0",
+  "primary": "#ce928d",
+  "secondary": "#dbc2a9",
+  "tertiary": "#dce1a9",
+  "unclassified": "#dedac6",
+  "residential": "#e9e8da",
+  "motorway_link": "#9d95ad",
+  "trunk_link": "#a098b0",
+  "primary_link": "#ce928d",
+  "secondary_link": "#dbc2a9",
+  "tertiary_link": "#dce1a9",
+  "road": "#999999"
+}

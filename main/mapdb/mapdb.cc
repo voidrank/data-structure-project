@@ -128,6 +128,7 @@ namespace exports {
         int index= int(args[0]->NumberValue());
         auto edge = store::getEdge(index);
 
+
         Local<Object> obj = Object::New(isolate);
         obj->Set(String::NewFromUtf8(isolate, "a"), Number::New(isolate, edge.a));
         obj->Set(String::NewFromUtf8(isolate, "b"), Number::New(isolate, edge.b));
@@ -141,7 +142,7 @@ namespace exports {
 
         if (!args[0]->IsNumber() || args[0]->NumberValue() >= store::m) {
             isolate->ThrowException(Exception::TypeError(
-                String::NewFromUtf8(isolate, "Wrong arguments")));
+            String::NewFromUtf8(isolate, "Wrong arguments")));
             return;
         }
 
@@ -152,6 +153,8 @@ namespace exports {
         obj->Set(String::NewFromUtf8(isolate, "op"), Number::New(isolate, way.op));
         obj->Set(String::NewFromUtf8(isolate, "ed"), Number::New(isolate, way.ed));
         obj->Set(String::NewFromUtf8(isolate, "name"), String::NewFromUtf8(isolate, way.name.c_str()));
+        obj->Set(String::NewFromUtf8(isolate, "roadType"), String::NewFromUtf8(isolate, way.road_type.c_str()));
+
 
         args.GetReturnValue().Set(obj);
     }
@@ -169,7 +172,7 @@ namespace exports {
 
         int index= int(args[0]->NumberValue());
         
-        args.GetReturnValue().Set(Number::New(isolate, store::getCluster(index)));
+        args.GetReturnValue().Set(Number::New(isolate, map_algorithm::getCluster(index)));
     }
 
 
@@ -214,7 +217,7 @@ namespace exports {
         Isolate* isolate = args.GetIsolate();
         if (!args[0]->IsObject()) {
             isolate->ThrowException(Exception::TypeError(
-                String::NewFromUtf8(isolate, "Wrong arguments")));
+            String::NewFromUtf8(isolate, "Wrong arguments")));
             return;
         }
 
@@ -236,13 +239,132 @@ namespace exports {
             }
         }
 
-        map_algorithm::init(store::v, store::e, store::cluster, move(tmp_extract));
+        map_algorithm::init(store::v, store::e, move(tmp_extract));
         args.GetReturnValue().Set(names);
 
     }
 
+    void query(const FunctionCallbackInfo<Value>& args) {
+        Isolate* isolate = args.GetIsolate();
+
+        if (!args[0]->IsNumber() || !args[1]->IsNumber()) {
+            isolate->ThrowException(Exception::TypeError(
+            String::NewFromUtf8(isolate, "Wrong arguments")));
+            return;
+        }
+
+        double ret = map_algorithm::query(args[0]->NumberValue(), args[1]->NumberValue())._1;
+
+        if (ret == -1) {
+            isolate->ThrowException(Exception::TypeError(
+            String::NewFromUtf8(isolate, "Wrong arguments")));
+            return;
+        }
+
+        args.GetReturnValue().Set(Number::New(isolate, ret));
+    }
+
+    void queryById(const FunctionCallbackInfo<Value>& args) {
+        Isolate* isolate = args.GetIsolate();
+
+        if (!args[0]->IsNumber() || !args[1]->IsNumber()) {
+            isolate->ThrowException(Exception::TypeError(
+            String::NewFromUtf8(isolate, "Wrong arguments")));
+            return;
+        }
+
+        double ret = map_algorithm::query(store::mapping[args[0]->NumberValue()], store::mapping[args[1]->NumberValue()])._1;
+
+        if (ret == -1) {
+            isolate->ThrowException(Exception::TypeError(
+            String::NewFromUtf8(isolate, "Wrong arguments")));
+            return;
+        }
+
+        args.GetReturnValue().Set(Number::New(isolate, ret));
+    }
+
+
+    void queryPath(const FunctionCallbackInfo<Value>& args) {
+        Isolate *isolate = args.GetIsolate();
+
+        if (!args[0]->IsNumber() || !args[1]->IsNumber()) {
+            isolate->ThrowException(Exception::TypeError(
+            String::NewFromUtf8(isolate, "Wrong arguments")));
+            return;
+        }
+
+        auto ans = map_algorithm::query(args[0]->NumberValue(), args[1]->NumberValue(), 1);
+        Local<Array> v8path = Array::New(isolate);
+        Local<Object> obj = Object::New(isolate);
+
+        for (size_t i = 0; i < ans._2.size(); ++i)
+            v8path->Set(Number::New(isolate, i), Number::New(isolate, ans._2[i]));
+
+        obj->Set(String::NewFromUtf8(isolate, "value"), Number::New(isolate, ans._1));
+        obj->Set(String::NewFromUtf8(isolate, "path"), v8path);
+
+
+        args.GetReturnValue().Set(obj);
+    }
+
+
+    void isRoadPointById(const FunctionCallbackInfo<Value>& args) {
+        Isolate* isolate = args.GetIsolate();
+
+        bool ret = (map_algorithm::d[store::mapping[args[0]->NumberValue()]] > 0);
+
+        args.GetReturnValue().Set(Number::New(isolate, ret));
+    }
+
+
+
+    void isRoadPoint(const FunctionCallbackInfo<Value>& args) {
+        Isolate *isolate = args.GetIsolate();
+
+        bool ret = map_algorithm::d[args[0]->NumberValue()] > 0;
+
+        args.GetReturnValue().Set(Number::New(isolate, ret));
+    }
+
+
+
+    void getRandomRoadPoint(const FunctionCallbackInfo<Value>& args) {
+        Isolate *isolate = args.GetIsolate();
+
+        int x = rand() % store::getN();
+        while (map_algorithm::d[x] == 0)
+            x = rand() % store::getN();
+
+        args.GetReturnValue().Set(Number::New(isolate, x));
+    }
+
+
+
+    void getNearestPoint(const FunctionCallbackInfo<Value>& args) {
+        Isolate *isolate = args.GetIsolate();
+
+        if (!args[0]->IsObject()) {
+            isolate->ThrowException(Exception::TypeError(
+                    String::NewFromUtf8(isolate, "Wrong arguments")));
+            return;
+        }
+
+        double x = args[0]->ToObject()->Get(String::NewFromUtf8(isolate, "lon"))->NumberValue(),
+               y = args[0]->ToObject()->Get(String::NewFromUtf8(isolate, "lat"))->NumberValue();
+
+        size_t ret = map_algorithm::get_nearest_point(store::Point{y, x, 0, ""}, store::v);
+
+        args.GetReturnValue().Set(Number::New(isolate, ret));
+    }
+
 
     void init(Local<Object> exports) {
+
+        // For random
+        srand(time(0));
+
+        // get
         NODE_SET_METHOD(exports, "getN", getN);
         NODE_SET_METHOD(exports, "getM", getM);
         NODE_SET_METHOD(exports, "getW", getW);
@@ -254,12 +376,23 @@ namespace exports {
         NODE_SET_METHOD(exports, "getMaxLat", getMaxLat);
         NODE_SET_METHOD(exports, "getMinLon", getMinLon);
         NODE_SET_METHOD(exports, "getMinLat", getMinLat);
+        NODE_SET_METHOD(exports, "query", query);
+        NODE_SET_METHOD(exports, "queryById", queryById);
+        NODE_SET_METHOD(exports, "queryPath", queryPath);
+        NODE_SET_METHOD(exports, "isRoadPoint", isRoadPoint);
+        NODE_SET_METHOD(exports, "getNearestPoint", getNearestPoint);
+
+        // init
+        NODE_SET_METHOD(exports, "loadMapFromXML", loadMapFromXML);
+        NODE_SET_METHOD(exports, "initMapServer", initMapServer);
+
+
+        // for test
+        NODE_SET_METHOD(exports, "loadMap", loadMap);
         NODE_SET_METHOD(exports, "getCluster", getCluster);
         NODE_SET_METHOD(exports, "getClusterById", getClusterById);
-        NODE_SET_METHOD(exports, "loadMap", loadMap);
-        NODE_SET_METHOD(exports, "loadMapFromXML", loadMapFromXML);
         NODE_SET_METHOD(exports, "loadCluster", loadCluster);
-        NODE_SET_METHOD(exports, "initMapServer", initMapServer);
+        NODE_SET_METHOD(exports, "getRandomRoadPoint", getRandomRoadPoint);
     }
 
     NODE_MODULE(addon, init)
